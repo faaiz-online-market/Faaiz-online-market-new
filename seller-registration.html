@@ -1,0 +1,39 @@
+<!doctype html>
+<html lang="so">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Seller Registration | FAA’IZ ONLINE MARKET</title>
+<style>
+*{box-sizing:border-box}body{margin:0;font-family:Arial,sans-serif;background:#f4f7fb;color:#172033;display:grid;min-height:100vh;place-items:center;padding:20px}.card{width:100%;max-width:460px;background:#fff;border-radius:18px;padding:26px;box-shadow:0 8px 30px #17203318}h1{font-size:23px;margin:0 0 8px;text-align:center}p{color:#64748b;line-height:1.5;text-align:center}label{display:block;font-weight:600;margin:14px 0 6px}input{width:100%;padding:13px;border:1px solid #cbd5e1;border-radius:10px;font-size:16px}button{width:100%;border:0;border-radius:10px;background:#155eef;color:#fff;padding:14px;font-size:16px;font-weight:700;margin-top:20px}button:disabled{opacity:.6}#message{margin-top:16px;padding:12px;border-radius:10px;display:none;line-height:1.5}.ok{display:block!important;background:#ecfdf3;color:#067647}.err{display:block!important;background:#fef3f2;color:#b42318}.small{font-size:13px}
+</style></head>
+<body><main class="card">
+<h1>FAA’IZ ONLINE MARKET</h1><p>Iska diiwaangeli dukaankaaga si aad uga iibiso suuqa.</p>
+<form id="sellerForm">
+<label for="owner">Magaca milkiilaha</label><input id="owner" autocomplete="name" required>
+<label for="store">Magaca dukaanka</label><input id="store" required>
+<label for="phone">Lambarka telefoonka</label><input id="phone" type="tel" autocomplete="tel" required>
+<label for="email">Gmail / Email</label><input id="email" type="email" autocomplete="email" required>
+<label for="password">Password</label><input id="password" type="password" minlength="8" autocomplete="new-password" required>
+<button id="submitBtn" type="submit">Samee Account-ka Dukaanka</button>
+</form><div id="message" role="status"></div>
+<p class="small">Diiwaangelinta kadib, dukaankaagu wuxuu sugayaa oggolaanshaha maamulka FAA’IZ.</p>
+</main>
+<script type="module">
+import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
+import { SUPABASE_URL, SUPABASE_ANON_KEY } from './config.js';
+const supabase=createClient(SUPABASE_URL,SUPABASE_ANON_KEY);
+const form=document.getElementById('sellerForm'),button=document.getElementById('submitBtn'),message=document.getElementById('message');
+function showMessage(text,ok=false){message.textContent=text;message.className=ok?'ok':'err';}
+form.addEventListener('submit',async(event)=>{
+ event.preventDefault();button.disabled=true;button.textContent='Fadlan sug...';message.className='';message.style.display='none';
+ const owner_name=document.getElementById('owner').value.trim(),store_name=document.getElementById('store').value.trim(),phone=document.getElementById('phone').value.trim(),email=document.getElementById('email').value.trim(),password=document.getElementById('password').value;
+ try{
+  const {data,error}=await supabase.auth.signUp({email,password,options:{data:{account_type:'seller',owner_name,store_name,phone}}});
+  if(error)throw error;
+  if(data.session){showMessage('Diiwaangelintaadu way guulaysatay. Dukaankaagu wuxuu sugayaa oggolaanshaha maamulka.',true);}
+  else{showMessage('Codsiga account-ka waa la diray. Ka xaqiiji email-kaaga. Dukaankaagu wuxuu sugayaa oggolaanshaha maamulka.',true);}
+  form.reset();
+ }catch(err){showMessage(err.message||'Diiwaangelintu way fashilantay.');}
+ finally{button.disabled=false;button.textContent='Samee Account-ka Dukaanka';}
+});
+</script></body></html>
