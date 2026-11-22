@@ -1,1 +1,253 @@
 
+
+<!DOCTYPE html>
+<html lang="so">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>FAA'IZ - Maamulka Dukaamada</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      background: #f3f5f9;
+      margin: 0;
+      padding: 20px;
+      color: #222;
+    }
+    .container {
+      max-width: 850px;
+      margin: 25px auto;
+      background: white;
+      padding: 22px;
+      border-radius: 12px;
+      box-shadow: 0 3px 15px #0001;
+    }
+    h2 { color: #123d70; }
+    input, button {
+      box-sizing: border-box;
+      width: 100%;
+      padding: 12px;
+      margin: 8px 0;
+      border-radius: 7px;
+      border: 1px solid #ccc;
+      font-size: 16px;
+    }
+    button {
+      background: #123d70;
+      color: white;
+      border: 0;
+      cursor: pointer;
+    }
+    button.approve { background: #168548; }
+    button.reject { background: #c73535; }
+    .application {
+      border: 1px solid #ddd;
+      border-radius: 9px;
+      padding: 15px;
+      margin: 14px 0;
+    }
+    .status { font-weight: bold; }
+    #message { margin: 12px 0; }
+    .actions { display: flex; gap: 10px; }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h2>FAA'IZ ONLINE MARKET</h2>
+    <h3>Maamulka codsiyada dukaamada</h3>
+
+    <section id="login">
+      <p>Gal akoonka maamulka.</p>
+      <input id="email" type="email" placeholder="Email-ka maamulka">
+      <input id="password" type="password" placeholder="Password-ka">
+      <button id="loginBtn">Gal</button>
+    </section>
+
+    <section id="dashboard" hidden>
+      <p>Waxaad ku jirtaa maamulka dukaamada.</p>
+      <button id="refreshBtn">Cusboonaysii codsiyada</button>
+      <button id="logoutBtn">Ka bax</button>
+      <div id="applications"></div>
+    </section>
+
+    <p id="message"></p>
+  </div>
+
+  <script type="module">
+    import { createClient } from
+      'https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/+esm';
+    import { SUPABASE_URL, SUPABASE_ANON_KEY } from './config.js';
+
+    const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+    const loginSection = document.getElementById('login');
+    const dashboard = document.getElementById('dashboard');
+    const message = document.getElementById('message');
+    const applications = document.getElementById('applications');
+
+    function showMessage(text, error = false) {
+      message.textContent = text;
+      message.style.color = error ? '#c73535' : '#168548';
+    }
+
+    async function checkAdmin() {
+      const { data: { user } } = await supabase.auth.getUser();
+
+      if (!user) {
+        loginSection.hidden = false;
+        dashboard.hidden = true;
+        return;
+      }
+
+      if (user.app_metadata?.role !== 'admin') {
+        showMessage(
+          'Akoonkan looma oggola maamulka. Admin role ayaa loo baahan yahay.',
+          true
+        );
+        await supabase.auth.signOut();
+        return;
+      }
+
+      loginSection.hidden = true;
+      dashboard.hidden = false;
+      await loadApplications();
+    }
+
+    document.getElementById('loginBtn').addEventListener('click', async () => {
+      const email = document.getElementById('email').value.trim();
+      const password = document.getElementById('password').value;
+
+      if (!email || !password) {
+        showMessage('Geli email-ka iyo password-ka.', true);
+        return;
+      }
+
+      showMessage('Waa la gelayaa...');
+
+      const { error } = await supabase.auth.signInWithPassword({
+        email,
+        password
+      });
+
+      if (error) {
+        showMessage(error.message, true);
+        return;
+      }
+
+      await checkAdmin();
+    });
+
+    async function loadApplications() {
+      showMessage('Codsiyada waa la soo rarayaa...');
+
+      const { data, error } = await supabase
+        .from('seller_applications')
+        .select('*')
+        .order('created_at', { ascending: false });
+
+      if (error) {
+        showMessage('Codsiyada lama soo rari karin: ' + error.message, true);
+        return;
+      }
+
+      applications.replaceChildren();
+
+      if (!data || data.length === 0) {
+        applications.textContent = 'Weli codsi dukaan ma jiro.';
+        showMessage('');
+        return;
+      }
+
+      data.forEach((seller) => {
+        const card = document.createElement('div');
+        card.className = 'application';
+
+        const title = document.createElement('h3');
+        title.textContent = seller.store_name;
+
+        const owner = document.createElement('p');
+        owner.textContent = 'Milkiile: ' + seller.owner_name;
+
+        const phone = document.createElement('p');
+        phone.textContent = 'Telefoon: ' + seller.phone;
+
+        const email = document.createElement('p');
+        email.textContent = 'Email: ' + seller.email;
+
+        const status = document.createElement('p');
+        status.className = 'status';
+        status.textContent = 'Xaaladda: ' + seller.status;
+
+        card.append(title, owner, phone, email, status);
+
+        if (seller.status === 'pending') {
+          const actions = document.createElement('div');
+          actions.className = 'actions';
+
+          const approve = document.createElement('button');
+          approve.className = 'approve';
+          approve.textContent = 'Aqbal';
+
+          const reject = document.createElement('button');
+          reject.className = 'reject';
+          reject.textContent = 'Diid';
+
+          approve.addEventListener('click', () =>
+            updateStatus(seller.id, 'approved')
+          );
+
+          reject.addEventListener('click', () =>
+            updateStatus(seller.id, 'rejected')
+          );
+
+          actions.append(approve, reject);
+          card.append(actions);
+        }
+
+        applications.append(card);
+      });
+
+      showMessage('Codsiyada waa la soo bandhigay.');
+    }
+
+    async function updateStatus(id, status) {
+      const confirmed = confirm(
+        status === 'approved'
+          ? 'Ma hubtaa inaad codsigan aqbalayso?'
+          : 'Ma hubtaa inaad codsigan diidayso?'
+      );
+
+      if (!confirmed) return;
+
+      const { error } = await supabase
+        .from('seller_applications')
+        .update({
+          status,
+          reviewed_at: new Date().toISOString()
+        })
+        .eq('id', id);
+
+      if (error) {
+        showMessage('Wax-ka-beddelku wuu fashilmay: ' + error.message, true);
+        return;
+      }
+
+      showMessage('Xaaladda codsiga waa la beddelay.');
+      await loadApplications();
+    }
+
+    document.getElementById('refreshBtn')
+      .addEventListener('click', loadApplications);
+
+    document.getElementById('logoutBtn').addEventListener('click', async () => {
+      await supabase.auth.signOut();
+      applications.replaceChildren();
+      dashboard.hidden = true;
+      loginSection.hidden = false;
+      showMessage('Waad ka baxday.');
+    });
+
+    checkAdmin();
+  </script>
+</body>
+</html>
