@@ -272,11 +272,26 @@ document.getElementById('refreshSellerApplications').onclick =
       const del=document.createElement('button');del.textContent='Tirtir';del.style.background='#ddd';del.onclick=async()=>{if(!confirm('Ma hubtaa inaad tirtirayso '+p.name+'?'))return;const {error}=await supabase.from('products').delete().eq('id',p.id);if(error)alert(error.message);else await loadProducts();};
       actions.append(edit,del);row.append(info,actions);adminList.append(row);
     });
+  }async function updateAdminState(){
+  const {data:{user}, error} = await supabase.auth.getUser();
+
+  isAdmin = !error && !!user &&
+            user.app_metadata?.role === 'admin';
+
+  adminLogin.style.display = isAdmin ? 'none' : 'block';
+  adminTools.style.display = isAdmin ? 'block' : 'none';
+
+  if(isAdmin){
+    showMessage('Waad gashay maamulka.');
+    refreshAdminList();
+    loadSellerApplications();
+  } else {
+    if(user){
+      await supabase.auth.signOut();
+      showMessage('Akoonkan looma oggola maamulka.', true);
+    }
   }
-  async function updateAdminState(){
-    const {data:{session}}=await supabase.auth.getSession();isAdmin=!!session;
-    adminLogin.style.display=isAdmin?'none':'block';adminTools.style.display=isAdmin?'block':'none';
-    if(isAdmin)refreshAdminList();
+}
   }
   document.getElementById('adminOpen').onclick=()=>{adminPanel.style.display='block';adminPanel.scrollIntoView({behavior:'smooth'});};
   document.getElementById('adminClose').onclick=()=>{adminPanel.style.display='none';};
