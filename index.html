@@ -290,9 +290,10 @@ document.getElementById('refreshSellerApplications').onclick =
       await supabase.auth.signOut();
       showMessage('Akoonkan looma oggola maamulka.', true);
     }
-  }
+ 
+}
 
-  }
+  
   document.getElementById('adminOpen').onclick=()=>{adminPanel.style.display='block';adminPanel.scrollIntoView({behavior:'smooth'});};
   document.getElementById('adminClose').onclick=()=>{adminPanel.style.display='none';};
   document.getElementById('adminLoginBtn').onclick=async()=>{
