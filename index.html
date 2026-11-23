@@ -380,7 +380,12 @@ document.getElementById('refreshSellerApplications').onclick =
   search.addEventListener('input',renderProducts);
   if(configured){await updateAdminState();await loadProducts();supabase.channel('products-live').on('postgres_changes',{event:'*',schema:'public',table:'products'},loadProducts).subscribe();}
   else {renderCategories();renderProducts();showMessage('Database-ka wali lama xidhin. Eeg SETUP-SO.txt.',true);}
-
+if ('serviceWorker' in navigator) {
+  window.addEventListener('load', () => {
+    navigator.serviceWorker.register('./service-worker.js')
+      .catch(error => console.error('PWA Error:', error));
+  });
+}
 </script>
 </body>
 </html>
