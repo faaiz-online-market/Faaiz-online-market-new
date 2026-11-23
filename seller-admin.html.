@@ -76,9 +76,8 @@
     import { createClient } from
       'https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/+esm';
 
-    // Waxaa la saxay: config.js wuxuu yaallaa galka kore.
-    import { SUPABASE_URL, SUPABASE_ANON_KEY } from '../config.js';
-
+    // Waxaa la saxay: config.js wuxuu yaallaa galka kore.    
+import { SUPABASE_URL, SUPABASE_ANON_KEY } from './config.js';
     const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
     const loginSection = document.getElementById('login');
