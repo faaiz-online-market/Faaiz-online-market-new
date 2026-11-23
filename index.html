@@ -166,6 +166,96 @@
       details.append(name,desc,price,btn);card.append(photo,details);list.appendChild(card);
     });
   }
+  async function loadSellerApplications(){
+  if(!isAdmin) return;
+
+  const container = document.getElementById('sellerApplicationsList');
+  container.textContent = 'Codsiyada waa la soo rarayaa...';
+
+  const {data, error} = await supabase
+    .from('seller_applications')
+    .select('*')
+    .order('created_at', {ascending:false});
+
+  if(error){
+    container.textContent = 'Khalad: ' + error.message;
+    return;
+  }
+
+  container.replaceChildren();
+
+  if(!data || data.length === 0){
+    container.textContent = 'Weli codsi dukaan ma jiro.';
+    return;
+  }
+
+  data.forEach(seller => {
+    const card = document.createElement('div');
+    card.style.cssText =
+      'border:1px solid #ddd;padding:14px;margin:12px 0;border-radius:10px';
+
+    const title = document.createElement('h4');
+    title.textContent = seller.store_name || 'Dukaan aan magac lahayn';
+
+    const details = document.createElement('p');
+    details.textContent =
+      'Milkiile: ' + (seller.owner_name || '') +
+      ' | Telefoon: ' + (seller.phone || '') +
+      ' | Email: ' + (seller.email || '') +
+      ' | Xaalad: ' + (seller.status || '');
+
+    card.append(title, details);
+
+    if(seller.status === 'pending'){
+      const approve = document.createElement('button');
+      approve.textContent = 'Aqbal';
+      approve.style.background = '#168548';
+      approve.style.color = 'white';
+
+      const reject = document.createElement('button');
+      reject.textContent = 'Diid';
+      reject.style.background = '#c73535';
+      reject.style.color = 'white';
+      reject.style.marginLeft = '8px';
+
+      approve.onclick = () => changeSellerStatus(seller.id, 'approved');
+      reject.onclick = () => changeSellerStatus(seller.id, 'rejected');
+
+      card.append(approve, reject);
+    }
+
+    container.append(card);
+  });
+}
+
+async function changeSellerStatus(id, status){
+  if(!isAdmin) return;
+
+  const question = status === 'approved'
+    ? 'Ma hubtaa inaad aqbalayso codsigan?'
+    : 'Ma hubtaa inaad diidayso codsigan?';
+
+  if(!confirm(question)) return;
+
+  const {error} = await supabase
+    .from('seller_applications')
+    .update({
+      status: status,
+      reviewed_at: new Date().toISOString()
+    })
+    .eq('id', id);
+
+  if(error){
+    alert('Khalad: ' + error.message);
+    return;
+  }
+
+  alert('Xaaladda codsiga waa la beddelay.');
+  await loadSellerApplications();
+}
+
+document.getElementById('refreshSellerApplications').onclick =
+  loadSellerApplications;
   async function loadProducts(){
     if(!configured){products=[];renderCategories();renderProducts();showMessage('App-ka weli lama xidhin database-ka. Raac SETUP-SO.txt.',true);return;}
     const {data,error}=await supabase.from('products').select('*').order('created_at',{ascending:false});
