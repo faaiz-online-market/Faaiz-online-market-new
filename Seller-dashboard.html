@@ -1,0 +1,373 @@
+
+<!DOCTYPE html>
+<html lang="so">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Seller Dashboard | FAA'IZ ONLINE MARKET</title>
+  <style>
+    *{box-sizing:border-box}
+    body{margin:0;font-family:Arial,sans-serif;background:#f3f6fb;color:#172033}
+    header{background:#102b50;color:white;padding:20px}
+    header h2{margin:0}
+    header p{margin:7px 0 0;color:#d8e5f5}
+    main{max-width:1050px;margin:25px auto;padding:0 15px}
+    .card{background:white;border-radius:13px;padding:20px;margin-bottom:18px;box-shadow:0 3px 14px #0000000c}
+    h3{margin-top:0;color:#102b50}
+    input,select,textarea,button{width:100%;padding:12px;margin:7px 0;border:1px solid #d5dce7;border-radius:8px;font-size:15px}
+    textarea{min-height:85px}
+    button{background:#0d6efd;color:white;border:0;font-weight:bold;cursor:pointer}
+    button:disabled{opacity:.5;cursor:not-allowed}
+    .secondary{background:#102b50}
+    .danger{background:#dc3545}
+    .success{background:#198754}
+    .hidden{display:none}
+    .message{padding:12px;border-radius:8px;margin:10px 0;background:#eaf2ff}
+    .stats{display:grid;grid-template-columns:repeat(3,1fr);gap:12px}
+    .stat{background:#edf3fb;padding:17px;border-radius:10px;text-align:center}
+    .stat strong{display:block;font-size:25px;color:#102b50}
+    .products{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:15px}
+    .product{border:1px solid #e1e6ee;border-radius:10px;padding:13px}
+    .product img{width:100%;height:155px;object-fit:cover;border-radius:8px;background:#eee}
+    .product h4{margin:10px 0 5px}
+    .actions{display:flex;gap:7px}
+    .actions button{font-size:13px;padding:10px}
+    .muted{color:#697586;font-size:13px}
+    @media(max-width:550px){.stats{grid-template-columns:1fr}}
+  </style>
+</head>
+<body>
+
+<header>
+  <h2>FAA'IZ ONLINE MARKET</h2>
+  <p>Seller Dashboard – Maamul dukaankaaga</p>
+</header>
+
+<main>
+  <section id="loginSection" class="card">
+    <h3>Seller Login</h3>
+    <p class="muted">Geli email-ka iyo password-ka akoonkaaga seller-ka.</p>
+    <input id="loginEmail" type="email" placeholder="Email address">
+    <input id="loginPassword" type="password" placeholder="Password">
+    <button id="loginBtn">Login</button>
+    <div id="loginMessage" class="message hidden"></div>
+  </section>
+
+  <section id="dashboardSection" class="hidden">
+    <div class="card">
+      <div style="display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap">
+        <div>
+          <h3 id="storeName">Dukaankayga</h3>
+          <p id="sellerStatus" class="muted"></p>
+        </div>
+        <button id="logoutBtn" class="danger" style="width:auto">Logout</button>
+      </div>
+      <div id="dashboardMessage" class="message hidden"></div>
+    </div>
+
+    <div class="card">
+      <h3>Warbixinta alaabta</h3>
+      <div class="stats">
+        <div class="stat"><strong id="totalProducts">0</strong>Alaabta oo dhan</div>
+        <div class="stat"><strong id="availableProducts">0</strong>La heli karo</div>
+        <div class="stat"><strong id="hiddenProducts">0</strong>La qariyey</div>
+      </div>
+    </div>
+
+    <div id="productFormCard" class="card">
+      <h3 id="formTitle">Ku dar alaab cusub</h3>
+      <form id="productForm">
+        <input id="productName" required placeholder="Magaca alaabta">
+        <input id="productCategory" required placeholder="Qaybta alaabta (Category)">
+        <input id="productPrice" type="number" min="0" step="0.01" required placeholder="Qiimaha">
+        <input id="productImage" type="url" placeholder="Image URL (link sawirka)">
+        <textarea id="productDescription" placeholder="Faahfaahinta alaabta"></textarea>
+        <button id="saveProductBtn" type="submit">Kaydi alaabta</button>
+        <button id="cancelEditBtn" type="button" class="secondary hidden">Jooji edit-ka</button>
+      </form>
+      <p class="muted">Sawirka hadda waxaa lagu gelinayaa link (Image URL).</p>
+    </div>
+
+    <div class="card">
+      <h3>Alaabtayda</h3>
+      <div id="productsList" class="products">Loading...</div>
+    </div>
+  </section>
+</main>
+
+<script type="module">
+import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
+import { SUPABASE_URL, SUPABASE_ANON_KEY } from './config.js';
+
+const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+const $ = id => document.getElementById(id);
+let currentSeller = null;
+let editingProductId = null;
+let products = [];
+
+function message(id, text, show = true) {
+  $(id).textContent = text;
+  $(id).classList.toggle('hidden', !show);
+}
+
+function escapeHTML(value = '') {
+  return String(value).replace(/[&<>"']/g, char => ({
+    '&':'&amp;', '<':'&lt;', '>':'&gt;',
+    '"':'&quot;', "'":'&#39;'
+  })[char]);
+}
+
+async function loadSeller() {
+  const { data: { user }, error: authError } = await supabase.auth.getUser();
+
+  if (authError || !user) {
+    $('loginSection').classList.remove('hidden');
+    $('dashboardSection').classList.add('hidden');
+    return;
+  }
+
+  const { data: seller, error } = await supabase
+    .from('sellers')
+    .select('id, store_name, owner_name, status, user_id')
+    .eq('user_id', user.id)
+    .maybeSingle();
+
+  if (error) {
+    message('loginMessage', 'Cilad: ' + error.message);
+    return;
+  }
+
+  if (!seller) {
+    message('loginMessage', 'Akoonkan weli laguma xidhin diiwaanka seller-ka. La xidhiidh maamulka.');
+    return;
+  }
+
+  currentSeller = seller;
+  $('loginSection').classList.add('hidden');
+  $('dashboardSection').classList.remove('hidden');
+  $('storeName').textContent = seller.store_name || 'Dukaankayga';
+  $('sellerStatus').textContent = 'Xaaladda: ' + seller.status;
+
+  const approved = seller.status === 'approved';
+  $('productFormCard').classList.toggle('hidden', !approved);
+
+  if (!approved) {
+    message('dashboardMessage', 'Codsigaagu weli lama ansixin. Marka maamulka ku ansixiyo ayaad alaab ku dari kartaa.');
+  } else {
+    message('dashboardMessage', '', false);
+  }
+
+  await loadProducts();
+}
+
+async function loadProducts() {
+  if (!currentSeller) return;
+
+  $('productsList').textContent = 'Loading...';
+
+  const { data, error } = await supabase
+    .from('products')
+    .select('*')
+    .eq('seller_id', currentSeller.id)
+    .order('created_at', { ascending: false });
+
+  if (error) {
+    $('productsList').textContent = 'Cilad alaabta: ' + error.message;
+    return;
+  }
+
+  products = data || [];
+  $('totalProducts').textContent = products.length;
+  $('availableProducts').textContent = products.filter(p => p.is_available).length;
+  $('hiddenProducts').textContent = products.filter(p => !p.is_available).length;
+
+  if (!products.length) {
+    $('productsList').textContent = 'Weli wax alaab ah ma lihid. Ku dar alaabtaada koowaad.';
+    return;
+  }
+
+  $('productsList').innerHTML = products.map(p => `
+    <div class="product">
+      <img src="${escapeHTML(p.image_url || '')}"
+           alt="${escapeHTML(p.name)}"
+           onerror="this.style.display='none'">
+      <h4>${escapeHTML(p.name)}</h4>
+      <p>${escapeHTML(p.category)}</p>
+      <strong>${escapeHTML(p.price)} USD</strong>
+      <p class="muted">${p.is_available ? 'La heli karo' : 'Waa la qariyey'}</p>
+      <p class="muted">${escapeHTML(p.description || '')}</p>
+      <div class="actions">
+        <button class="secondary" data-edit="${p.id}">Edit</button>
+        <button class="success" data-toggle="${p.id}">
+          ${p.is_available ? 'Qari' : 'Muuji'}
+        </button>
+        <button class="danger" data-delete="${p.id}">Delete</button>
+      </div>
+    </div>
+  `).join('');
+
+  $('productsList').querySelectorAll('[data-edit]').forEach(btn => {
+    btn.addEventListener('click', () => editProduct(btn.dataset.edit));
+  });
+  $('productsList').querySelectorAll('[data-toggle]').forEach(btn => {
+    btn.addEventListener('click', () => toggleProduct(btn.dataset.toggle));
+  });
+  $('productsList').querySelectorAll('[data-delete]').forEach(btn => {
+    btn.addEventListener('click', () => deleteProduct(btn.dataset.delete));
+  });
+}
+
+function resetForm() {
+  $('productForm').reset();
+  editingProductId = null;
+  $('formTitle').textContent = 'Ku dar alaab cusub';
+  $('saveProductBtn').textContent = 'Kaydi alaabta';
+  $('cancelEditBtn').classList.add('hidden');
+}
+
+function editProduct(id) {
+  const p = products.find(item => item.id === id);
+  if (!p) return;
+
+  editingProductId = id;
+  $('productName').value = p.name || '';
+  $('productCategory').value = p.category || '';
+  $('productPrice').value = p.price || '';
+  $('productImage').value = p.image_url || '';
+  $('productDescription').value = p.description || '';
+  $('formTitle').textContent = 'Wax ka beddel alaabta';
+  $('saveProductBtn').textContent = 'Cusboonaysii';
+  $('cancelEditBtn').classList.remove('hidden');
+  $('productFormCard').scrollIntoView({ behavior: 'smooth' });
+}
+
+$('cancelEditBtn').addEventListener('click', resetForm);
+
+$('productForm').addEventListener('submit', async event => {
+  event.preventDefault();
+
+  if (!currentSeller || currentSeller.status !== 'approved') return;
+
+  const productData = {
+    name: $('productName').value.trim(),
+    category: $('productCategory').value.trim(),
+    price: Number($('productPrice').value),
+    image_url: $('productImage').value.trim() || null,
+    description: $('productDescription').value.trim(),
+    seller_id: currentSeller.id
+  };
+
+  $('saveProductBtn').disabled = true;
+  $('saveProductBtn').textContent = 'Fadlan sug...';
+
+  let result;
+
+  if (editingProductId) {
+    result = await supabase
+      .from('products')
+      .update({
+        name: productData.name,
+        category: productData.category,
+        price: productData.price,
+        image_url: productData.image_url,
+        description: productData.description
+      })
+      .eq('id', editingProductId)
+      .eq('seller_id', currentSeller.id);
+  } else {
+    result = await supabase
+      .from('products')
+      .insert(productData);
+  }
+
+  $('saveProductBtn').disabled = false;
+  $('saveProductBtn').textContent = editingProductId ? 'Cusboonaysii' : 'Kaydi alaabta';
+
+  if (result.error) {
+    alert('Cilad: ' + result.error.message);
+    return;
+  }
+
+  alert('Alaabta si guul leh ayaa loo kaydiyey.');
+  resetForm();
+  await loadProducts();
+});
+
+async function toggleProduct(id) {
+  const p = products.find(item => item.id === id);
+  if (!p) return;
+
+  const { error } = await supabase
+    .from('products')
+    .update({ is_available: !p.is_available })
+    .eq('id', id)
+    .eq('seller_id', currentSeller.id);
+
+  if (error) {
+    alert('Cilad: ' + error.message);
+    return;
+  }
+
+  await loadProducts();
+}
+
+async function deleteProduct(id) {
+  if (!confirm('Ma hubtaa inaad tirtirayso alaabtan?')) return;
+
+  const { error } = await supabase
+    .from('products')
+    .delete()
+    .eq('id', id)
+    .eq('seller_id', currentSeller.id);
+
+  if (error) {
+    alert('Cilad: ' + error.message);
+    return;
+  }
+
+  alert('Alaabta waa la tirtiray.');
+  await loadProducts();
+}
+
+$('loginBtn').addEventListener('click', async () => {
+  const email = $('loginEmail').value.trim();
+  const password = $('loginPassword').value;
+
+  if (!email || !password) {
+    message('loginMessage', 'Fadlan geli email iyo password.');
+    return;
+  }
+
+  $('loginBtn').disabled = true;
+  message('loginMessage', 'Waa lagu gelinayaa...');
+
+  const { error } = await supabase.auth.signInWithPassword({ email, password });
+
+  $('loginBtn').disabled = false;
+
+  if (error) {
+    message('loginMessage', 'Login ma suurtagelin: ' + error.message);
+    return;
+  }
+
+  await loadSeller();
+});
+
+$('logoutBtn').addEventListener('click', async () => {
+  await supabase.auth.signOut();
+  currentSeller = null;
+  $('dashboardSection').classList.add('hidden');
+  $('loginSection').classList.remove('hidden');
+  $('loginPassword').value = '';
+});
+
+await loadSeller();
+
+supabase.auth.onAuthStateChange(() => {
+  setTimeout(loadSeller, 0);
+});
+</script>
+
+</body>
+</html>
