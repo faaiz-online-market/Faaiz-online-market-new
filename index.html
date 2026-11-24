@@ -230,31 +230,48 @@
   });
 }
 
-async function changeSellerStatus(id, status){
-  if(!isAdmin) return;
+
+async function changeSellerStatus(id, status) {
+  if (!isAdmin) return;
 
   const question = status === 'approved'
     ? 'Ma hubtaa inaad aqbalayso codsigan?'
     : 'Ma hubtaa inaad diidayso codsigan?';
 
-  if(!confirm(question)) return;
+  if (!confirm(question)) return;
 
-  const {error} = await supabase
-    .from('seller_applications')
-    .update({
-      status: status,
-      reviewed_at: new Date().toISOString()
-    })
-    .eq('id', id);
+  if (status === 'approved') {
+    const { data, error } = await supabase.rpc(
+      'approve_faaiz_seller_application',
+      { application_id: id }
+    );
 
-  if(error){
-    alert('Khalad: ' + error.message);
-    return;
+    if (error) {
+      alert('Aqbalidda way fashilantay: ' + error.message);
+      return;
+    }
+
+    alert('Codsiga waa la aqbalay, dukaankana waa la sameeyay!');
+  } else {
+    const { error } = await supabase
+      .from('seller_applications')
+      .update({
+        status: 'rejected',
+        reviewed_at: new Date().toISOString()
+      })
+      .eq('id', id);
+
+    if (error) {
+      alert('Diidmada way fashilantay: ' + error.message);
+      return;
+    }
+
+    alert('Codsiga waa la diiday.');
   }
 
-  alert('Xaaladda codsiga waa la beddelay.');
   await loadSellerApplications();
 }
+
 
 document.getElementById('refreshSellerApplications').onclick =
   loadSellerApplications;
