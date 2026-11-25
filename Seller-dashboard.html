@@ -1,4 +1,3 @@
-
 <!DOCTYPE html>
 <html lang="so">
 <head>
@@ -15,6 +14,7 @@
     .card{background:white;border-radius:13px;padding:20px;margin-bottom:18px;box-shadow:0 3px 14px #0000000c}
     h3{margin-top:0;color:#102b50}
     input,select,textarea,button{width:100%;padding:12px;margin:7px 0;border:1px solid #d5dce7;border-radius:8px;font-size:15px}
+    input[type=file]{background:#f8fafc}
     textarea{min-height:85px}
     button{background:#0d6efd;color:white;border:0;font-weight:bold;cursor:pointer}
     button:disabled{opacity:.5;cursor:not-allowed}
@@ -29,20 +29,18 @@
     .products{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:15px}
     .product{border:1px solid #e1e6ee;border-radius:10px;padding:13px}
     .product img{width:100%;height:155px;object-fit:cover;border-radius:8px;background:#eee}
-    .product h4{margin:10px 0 5px}
     .actions{display:flex;gap:7px}
     .actions button{font-size:13px;padding:10px}
     .muted{color:#697586;font-size:13px}
+    #imagePreview{width:150px;height:150px;object-fit:cover;border-radius:10px;display:block;margin:8px 0}
     @media(max-width:550px){.stats{grid-template-columns:1fr}}
   </style>
 </head>
 <body>
-
 <header>
   <h2>FAA'IZ ONLINE MARKET</h2>
   <p>Seller Dashboard – Maamul dukaankaaga</p>
 </header>
-
 <main>
   <section id="loginSection" class="card">
     <h3>Seller Login</h3>
@@ -56,10 +54,7 @@
   <section id="dashboardSection" class="hidden">
     <div class="card">
       <div style="display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap">
-        <div>
-          <h3 id="storeName">Dukaankayga</h3>
-          <p id="sellerStatus" class="muted"></p>
-        </div>
+        <div><h3 id="storeName">Dukaankayga</h3><p id="sellerStatus" class="muted"></p></div>
         <button id="logoutBtn" class="danger" style="width:auto">Logout</button>
       </div>
       <div id="dashboardMessage" class="message hidden"></div>
@@ -80,9 +75,14 @@
         <input id="productName" required placeholder="Magaca alaabta">
         <input id="productCategory" required placeholder="Qaybta alaabta (Category)">
         <input id="productPrice" type="number" min="0" step="0.01" required placeholder="Qiimaha">
-        <p class="muted">Sawirka ka dooro Gallery-ga telefoonkaaga.</p>
+        <label for="productImage" class="muted">Sawirka alaabta ka dooro telefoonkaaga:</label>
+        <input id="productImage" type="file" accept="image/*">
+        <img id="imagePreview" class="hidden" alt="Sawirka alaabta la doortay">
+        <p class="muted">Waxaad sawirka ka dooran kartaa Gallery-ga telefoonkaaga. Si toos ah ayaa loo upload-gareynayaa markaad kaydiso.</p>
+        <textarea id="productDescription" placeholder="Faahfaahinta alaabta"></textarea>
+        <button id="saveProductBtn" type="submit">Kaydi alaabta</button>
+        <button id="cancelEditBtn" type="button" class="secondary hidden">Jooji edit-ka</button>
       </form>
-    <p class="muted">Sawirka ka dooro Gallery-ga telefoonkaaga.</p>
     </div>
 
     <div class="card">
@@ -97,10 +97,11 @@ import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 import { SUPABASE_URL, SUPABASE_ANON_KEY } from './config.js';
 
 const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
-
+const STORAGE_BUCKET = 'Haylou j8 earbuds';
 const $ = id => document.getElementById(id);
 let currentSeller = null;
 let editingProductId = null;
+let editingImageUrl = null;
 let products = [];
 
 function message(id, text, show = true) {
@@ -110,14 +111,12 @@ function message(id, text, show = true) {
 
 function escapeHTML(value = '') {
   return String(value).replace(/[&<>"']/g, char => ({
-    '&':'&amp;', '<':'&lt;', '>':'&gt;',
-    '"':'&quot;', "'":'&#39;'
+    '&':'&amp;', '<':'&lt;', '>':'&gt;', '"':'&quot;', "'":'&#39;'
   })[char]);
 }
 
 async function loadSeller() {
   const { data: { user }, error: authError } = await supabase.auth.getUser();
-
   if (authError || !user) {
     $('loginSection').classList.remove('hidden');
     $('dashboardSection').classList.add('hidden');
@@ -130,11 +129,7 @@ async function loadSeller() {
     .eq('user_id', user.id)
     .maybeSingle();
 
-  if (error) {
-    message('loginMessage', 'Cilad: ' + error.message);
-    return;
-  }
-
+  if (error) { message('loginMessage', 'Cilad: ' + error.message); return; }
   if (!seller) {
     message('loginMessage', 'Akoonkan weli laguma xidhin diiwaanka seller-ka. La xidhiidh maamulka.');
     return;
@@ -148,37 +143,23 @@ async function loadSeller() {
 
   const approved = seller.status === 'approved';
   $('productFormCard').classList.toggle('hidden', !approved);
-
-  if (!approved) {
-    message('dashboardMessage', 'Codsigaagu weli lama ansixin. Marka maamulka ku ansixiyo ayaad alaab ku dari kartaa.');
-  } else {
-    message('dashboardMessage', '', false);
-  }
-
+  if (!approved) message('dashboardMessage', 'Codsigaagu weli lama ansixin. Marka maamulka ku ansixiyo ayaad alaab ku dari kartaa.');
+  else message('dashboardMessage', '', false);
   await loadProducts();
 }
 
 async function loadProducts() {
   if (!currentSeller) return;
-
   $('productsList').textContent = 'Loading...';
-
   const { data, error } = await supabase
-    .from('products')
-    .select('*')
-    .eq('seller_id', currentSeller.id)
+    .from('products').select('*').eq('seller_id', currentSeller.id)
     .order('created_at', { ascending: false });
-
-  if (error) {
-    $('productsList').textContent = 'Cilad alaabta: ' + error.message;
-    return;
-  }
+  if (error) { $('productsList').textContent = 'Cilad alaabta: ' + error.message; return; }
 
   products = data || [];
   $('totalProducts').textContent = products.length;
   $('availableProducts').textContent = products.filter(p => p.is_available).length;
   $('hiddenProducts').textContent = products.filter(p => !p.is_available).length;
-
   if (!products.length) {
     $('productsList').textContent = 'Weli wax alaab ah ma lihid. Ku dar alaabtaada koowaad.';
     return;
@@ -186,38 +167,29 @@ async function loadProducts() {
 
   $('productsList').innerHTML = products.map(p => `
     <div class="product">
-      <img src="${escapeHTML(p.image_url || '')}"
-           alt="${escapeHTML(p.name)}"
-           onerror="this.style.display='none'">
-      <h4>${escapeHTML(p.name)}</h4>
-      <p>${escapeHTML(p.category)}</p>
+      <img src="${escapeHTML(p.image_url || '')}" alt="${escapeHTML(p.name)}" onerror="this.style.display='none'">
+      <h4>${escapeHTML(p.name)}</h4><p>${escapeHTML(p.category)}</p>
       <strong>${escapeHTML(p.price)} USD</strong>
       <p class="muted">${p.is_available ? 'La heli karo' : 'Waa la qariyey'}</p>
       <p class="muted">${escapeHTML(p.description || '')}</p>
       <div class="actions">
         <button class="secondary" data-edit="${p.id}">Edit</button>
-        <button class="success" data-toggle="${p.id}">
-          ${p.is_available ? 'Qari' : 'Muuji'}
-        </button>
+        <button class="success" data-toggle="${p.id}">${p.is_available ? 'Qari' : 'Muuji'}</button>
         <button class="danger" data-delete="${p.id}">Delete</button>
       </div>
-    </div>
-  `).join('');
+    </div>`).join('');
 
-  $('productsList').querySelectorAll('[data-edit]').forEach(btn => {
-    btn.addEventListener('click', () => editProduct(btn.dataset.edit));
-  });
-  $('productsList').querySelectorAll('[data-toggle]').forEach(btn => {
-    btn.addEventListener('click', () => toggleProduct(btn.dataset.toggle));
-  });
-  $('productsList').querySelectorAll('[data-delete]').forEach(btn => {
-    btn.addEventListener('click', () => deleteProduct(btn.dataset.delete));
-  });
+  $('productsList').querySelectorAll('[data-edit]').forEach(btn => btn.addEventListener('click', () => editProduct(btn.dataset.edit)));
+  $('productsList').querySelectorAll('[data-toggle]').forEach(btn => btn.addEventListener('click', () => toggleProduct(btn.dataset.toggle)));
+  $('productsList').querySelectorAll('[data-delete]').forEach(btn => btn.addEventListener('click', () => deleteProduct(btn.dataset.delete)));
 }
 
 function resetForm() {
   $('productForm').reset();
   editingProductId = null;
+  editingImageUrl = null;
+  $('imagePreview').src = '';
+  $('imagePreview').classList.add('hidden');
   $('formTitle').textContent = 'Ku dar alaab cusub';
   $('saveProductBtn').textContent = 'Kaydi alaabta';
   $('cancelEditBtn').classList.add('hidden');
@@ -226,103 +198,112 @@ function resetForm() {
 function editProduct(id) {
   const p = products.find(item => item.id === id);
   if (!p) return;
-
   editingProductId = id;
+  editingImageUrl = p.image_url || null;
   $('productName').value = p.name || '';
   $('productCategory').value = p.category || '';
-  $('productPrice').value = p.price || '';
-  $('productImage').value = p.image_url || '';
+  $('productPrice').value = p.price ?? '';
+  $('productImage').value = '';
   $('productDescription').value = p.description || '';
+  if (editingImageUrl) {
+    $('imagePreview').src = editingImageUrl;
+    $('imagePreview').classList.remove('hidden');
+  } else {
+    $('imagePreview').src = '';
+    $('imagePreview').classList.add('hidden');
+  }
   $('formTitle').textContent = 'Wax ka beddel alaabta';
   $('saveProductBtn').textContent = 'Cusboonaysii';
   $('cancelEditBtn').classList.remove('hidden');
   $('productFormCard').scrollIntoView({ behavior: 'smooth' });
 }
 
+$('productImage').addEventListener('change', () => {
+  const file = $('productImage').files[0];
+  if (!file) return;
+  if (!file.type.startsWith('image/')) {
+    alert('Fadlan dooro sawir sax ah.');
+    $('productImage').value = '';
+    return;
+  }
+  if (file.size > 8 * 1024 * 1024) {
+    alert('Sawirku wuu weyn yahay. Fadlan dooro sawir ka yar 8MB.');
+    $('productImage').value = '';
+    return;
+  }
+  $('imagePreview').src = URL.createObjectURL(file);
+  $('imagePreview').classList.remove('hidden');
+});
+
 $('cancelEditBtn').addEventListener('click', resetForm);
 
 $('productForm').addEventListener('submit', async event => {
   event.preventDefault();
-
   if (!currentSeller || currentSeller.status !== 'approved') return;
+
+  const saveButton = $('saveProductBtn');
+  saveButton.disabled = true;
+  saveButton.textContent = 'Fadlan sug...';
 
   const productData = {
     name: $('productName').value.trim(),
     category: $('productCategory').value.trim(),
     price: Number($('productPrice').value),
-    image_url: $('productImage').value.trim() || null,
+    image_url: editingImageUrl,
     description: $('productDescription').value.trim(),
     seller_id: currentSeller.id
   };
 
-  $('saveProductBtn').disabled = true;
-  $('saveProductBtn').textContent = 'Fadlan sug...';
+  try {
+    const file = $('productImage').files[0];
+    if (file) {
+      const ext = (file.name.split('.').pop() || 'jpg').toLowerCase().replace(/[^a-z0-9]/g, '') || 'jpg';
+      const path = `${currentSeller.id}/${Date.now()}-${Math.random().toString(36).slice(2)}.${ext}`;
+      const { error: uploadError } = await supabase.storage
+        .from(STORAGE_BUCKET).upload(path, file, { upsert: false, contentType: file.type });
+      if (uploadError) throw new Error('Sawirka lama upload-gareyn: ' + uploadError.message);
+      const { data: publicData } = supabase.storage.from(STORAGE_BUCKET).getPublicUrl(path);
+      productData.image_url = publicData.publicUrl;
+    }
 
-  let result;
-
-  if (editingProductId) {
-    result = await supabase
-      .from('products')
-      .update({
+    let result;
+    if (editingProductId) {
+      result = await supabase.from('products').update({
         name: productData.name,
         category: productData.category,
         price: productData.price,
         image_url: productData.image_url,
         description: productData.description
-      })
-      .eq('id', editingProductId)
-      .eq('seller_id', currentSeller.id);
-  } else {
-    result = await supabase
-      .from('products')
-      .insert(productData);
+      }).eq('id', editingProductId).eq('seller_id', currentSeller.id);
+    } else {
+      result = await supabase.from('products').insert(productData);
+    }
+    if (result.error) throw new Error(result.error.message);
+
+    alert('Alaabta si guul leh ayaa loo kaydiyey.');
+    resetForm();
+    await loadProducts();
+  } catch (error) {
+    alert('Cilad: ' + error.message);
+  } finally {
+    saveButton.disabled = false;
+    saveButton.textContent = editingProductId ? 'Cusboonaysii' : 'Kaydi alaabta';
   }
-
-  $('saveProductBtn').disabled = false;
-  $('saveProductBtn').textContent = editingProductId ? 'Cusboonaysii' : 'Kaydi alaabta';
-
-  if (result.error) {
-    alert('Cilad: ' + result.error.message);
-    return;
-  }
-
-  alert('Alaabta si guul leh ayaa loo kaydiyey.');
-  resetForm();
-  await loadProducts();
 });
 
 async function toggleProduct(id) {
   const p = products.find(item => item.id === id);
   if (!p) return;
-
-  const { error } = await supabase
-    .from('products')
-    .update({ is_available: !p.is_available })
-    .eq('id', id)
-    .eq('seller_id', currentSeller.id);
-
-  if (error) {
-    alert('Cilad: ' + error.message);
-    return;
-  }
-
+  const { error } = await supabase.from('products').update({ is_available: !p.is_available })
+    .eq('id', id).eq('seller_id', currentSeller.id);
+  if (error) { alert('Cilad: ' + error.message); return; }
   await loadProducts();
 }
 
 async function deleteProduct(id) {
   if (!confirm('Ma hubtaa inaad tirtirayso alaabtan?')) return;
-
-  const { error } = await supabase
-    .from('products')
-    .delete()
-    .eq('id', id)
-    .eq('seller_id', currentSeller.id);
-
-  if (error) {
-    alert('Cilad: ' + error.message);
-    return;
-  }
-
+  const { error } = await supabase.from('products').delete().eq('id', id).eq('seller_id', currentSeller.id);
+  if (error) { alert('Cilad: ' + error.message); return; }
   alert('Alaabta waa la tirtiray.');
   await loadProducts();
 }
@@ -330,24 +311,12 @@ async function deleteProduct(id) {
 $('loginBtn').addEventListener('click', async () => {
   const email = $('loginEmail').value.trim();
   const password = $('loginPassword').value;
-
-  if (!email || !password) {
-    message('loginMessage', 'Fadlan geli email iyo password.');
-    return;
-  }
-
+  if (!email || !password) { message('loginMessage', 'Fadlan geli email iyo password.'); return; }
   $('loginBtn').disabled = true;
   message('loginMessage', 'Waa lagu gelinayaa...');
-
   const { error } = await supabase.auth.signInWithPassword({ email, password });
-
   $('loginBtn').disabled = false;
-
-  if (error) {
-    message('loginMessage', 'Login ma suurtagelin: ' + error.message);
-    return;
-  }
-
+  if (error) { message('loginMessage', 'Login ma suurtagelin: ' + error.message); return; }
   await loadSeller();
 });
 
@@ -360,11 +329,7 @@ $('logoutBtn').addEventListener('click', async () => {
 });
 
 await loadSeller();
-
-supabase.auth.onAuthStateChange(() => {
-  setTimeout(loadSeller, 0);
-});
+supabase.auth.onAuthStateChange(() => setTimeout(loadSeller, 0));
 </script>
-
 </body>
 </html>
