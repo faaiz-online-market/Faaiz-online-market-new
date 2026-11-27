@@ -257,13 +257,44 @@ $('productForm').addEventListener('submit', async event => {
   try {
     const file = $('productImage').files[0];
     if (file) {
-      const ext = (file.name.split('.').pop() || 'jpg').toLowerCase().replace(/[^a-z0-9]/g, '') || 'jpg';
-      const path = `${currentSeller.id}/${Date.now()}-${Math.random().toString(36).slice(2)}.${ext}`;
-      const { error: uploadError } = await supabase.storage
-        .from(STORAGE_BUCKET).upload(path, file, { upsert: false, contentType: file.type });
-      if (uploadError) throw new Error('Sawirka lama upload-gareyn: ' + uploadError.message);
-      const { data: publicData } = supabase.storage.from(STORAGE_BUCKET).getPublicUrl(path);
-      productData.image_url = publicData.publicUrl;
+      const ext = (file.name.split('.').pop() || 'jpg')
+  .toLowerCase()
+  .replace(/[^a-z0-9]/g, '') || 'jpg';
+
+const path = `${currentSeller.id}/${Date.now()}-${Math.random().toString(36).slice(2)}.${ext}`;
+
+const uploadOptions = {
+  cacheControl: '3600',
+  upsert: false
+};
+
+if (file.type) {
+  uploadOptions.contentType = file.type;
+}
+
+const { data: uploadedFile, error: uploadError } =
+  await supabase.storage
+    .from(STORAGE_BUCKET)
+    .upload(path, file, uploadOptions);
+
+if (uploadError) {
+  console.error('Supabase upload error:', uploadError);
+  throw new Error('Sawirka lama upload-gareyn: ' + uploadError.message);
+}
+
+if (!uploadedFile || !uploadedFile.path) {
+  throw new Error('Sawirka lama xaqiijin inuu upload-gareysmay.');
+}
+
+const { data: publicData } = supabase.storage
+  .from(STORAGE_BUCKET)
+  .getPublicUrl(uploadedFile.path);
+
+if (!publicData || !publicData.publicUrl) {
+  throw new Error('Public URL lama helin.');
+}
+
+productData.image_url = publicData.publicUrl;
     }
 
     let result;
