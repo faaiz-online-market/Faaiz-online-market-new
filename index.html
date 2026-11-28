@@ -762,8 +762,7 @@ border-radius:9px;font-weight:700;text-decoration:none">
     window.open('https://wa.me/'+WHATSAPP+'?text='+encodeURIComponent(msg),'_blank');
   }
   function renderProducts(){
-    const q=search.value.trim().toLowerCase();
-    const filtered=products.filter(p=>{(selected==='Dhammaan'||p.category===selected)&&((p.name||'').toLowerCase().includes(q)||(p.description||'').toLowerCase().includes(q)));
+    const q=search.value.trim().toLowerCase();const filtered=products.filter(p=>(selected==='Dhammaan'||p.category===selected)&&((p.name||'').toLowerCase().includes(q)||(p.description||'').toLowerCase().includes(q)));
     document.getElementById('count').textContent=filtered.length+' alaab'; list.innerHTML='';
     if(!filtered.length){list.innerHTML='<div class="empty"><strong>Weli alaab lama soo gelin.</strong><br><br>Fadlan mar dambe soo booqo.</div>';return;}
     filtered.forEach(p=>{
