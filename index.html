@@ -37,6 +37,154 @@
     footer{margin-top:24px;background:#111;color:white;text-align:center;padding:20px;font-size:13px}
     footer a{color:#ffc36b}
     @media(min-width:650px){.grid{grid-template-columns:repeat(3,minmax(0,1fr))}.photo{height:180px}}
+    
+:root {
+  --orange: #f28a00;
+  --black: #102b50;
+  --cream: #f5f8fc;
+  --muted: #64748b;
+}
+
+body {
+  background: #f5f8fc;
+  color: #172b45;
+  font-family: Arial, sans-serif;
+}
+
+header {
+  background: #102b50;
+  padding: 14px 5%;
+  box-shadow: 0 4px 18px #102b5020;
+}
+
+header img {
+  border: 2px solid white;
+}
+
+header h1 {
+  letter-spacing: .5px;
+}
+
+.hero {
+  background: linear-gradient(135deg, #102b50, #1d4d7d);
+  padding: 55px 6%;
+  color: white;
+}
+
+.hero h2 {
+  font-size: clamp(26px, 5vw, 42px);
+  line-height: 1.2;
+}
+
+.hero p {
+  color: #e1edfa;
+  line-height: 1.7;
+}
+
+main {
+  max-width: 1150px;
+  padding: 25px 16px;
+}
+
+.search {
+  border: 1px solid #d8e2ef;
+  border-radius: 14px;
+  padding: 16px;
+  box-shadow: 0 4px 14px #102b500b;
+}
+
+.chip {
+  border-radius: 30px;
+  border-color: #dce5ef;
+  transition: .2s;
+}
+
+.chip.active {
+  background: #102b50;
+  border-color: #102b50;
+  color: white;
+}
+
+.grid {
+  gap: 18px;
+}
+
+.card {
+  border: 1px solid #e8edf4;
+  border-radius: 17px;
+  box-shadow: 0 5px 20px #102b5010;
+  transition: transform .2s, box-shadow .2s;
+}
+
+.card:hover {
+  transform: translateY(-4px);
+  box-shadow: 0 10px 25px #102b501c;
+}
+
+.photo {
+  height: 190px;
+  background: #edf3fa;
+}
+
+.photo img {
+  object-fit: contain;
+  padding: 8px;
+}
+
+.details {
+  padding: 15px;
+}
+
+.details h4 {
+  color: #102b50;
+  font-size: 16px;
+}
+
+.price {
+  color: #102b50;
+  font-size: 18px;
+}
+
+button {
+  background: #f28a00;
+  color: #102b50;
+  transition: .2s;
+}
+
+button:hover {
+  filter: brightness(.94);
+}
+
+.order {
+  background: #102b50;
+  color: white;
+  border-radius: 10px;
+}
+
+footer {
+  background: #102b50;
+  padding: 30px 16px;
+  line-height: 1.8;
+}
+
+footer a {
+  color: #ffc36b;
+}
+
+@media (max-width: 500px) {
+  .hero {
+    padding: 38px 18px;
+  }
+
+  .photo {
+    height: 155px;
+  }
+
+  .grid {
+    gap: 12px;
+  }
+}
+
   </style>
 </head>
 <body>
