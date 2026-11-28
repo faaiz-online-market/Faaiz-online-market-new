@@ -284,8 +284,72 @@ footer a {
   header h1 {
     font-size: 12px;
   }
+} 
+    
+/* PRODUCT DETAILS POPUP */
+.product-modal {
+  display: none;
+  position: fixed;
+  z-index: 9999;
+  inset: 0;
+  background: rgba(0,0,0,0.75);
+  justify-content: center;
+  align-items: center;
+  padding: 15px;
 }
 
+.product-modal-content {
+  background: white;
+  width: 100%;
+  max-width: 450px;
+  max-height: 90vh;
+  overflow-y: auto;
+  border-radius: 18px;
+  position: relative;
+  padding: 15px;
+  animation: modalShow 0.25s ease;
+}
+
+.product-modal-content img {
+  width: 100%;
+  max-height: 300px;
+  object-fit: contain;
+  border-radius: 12px;
+}
+
+.modal-details {
+  padding: 12px 5px;
+}
+
+.modal-details h2 {
+  color: #123b70;
+  margin: 10px 0;
+}
+
+.modal-details p {
+  color: #555;
+  line-height: 1.6;
+}
+
+.modal-close {
+  position: absolute;
+  top: 10px;
+  right: 12px;
+  z-index: 2;
+  background: #123b70;
+  color: white;
+  border: none;
+  border-radius: 50%;
+  width: 35px;
+  height: 35px;
+  font-size: 25px;
+  cursor: pointer;
+}
+
+@keyframes modalShow {
+  from { transform: scale(0.9); opacity: 0; }
+  to { transform: scale(1); opacity: 1; }
+}
 
   </style>
 </head>
