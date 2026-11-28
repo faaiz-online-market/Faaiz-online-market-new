@@ -497,6 +497,30 @@ border-radius:9px;font-weight:700;text-decoration:none">
     if(!filtered.length){list.innerHTML='<div class="empty"><strong>Weli alaab lama soo gelin.</strong><br><br>Fadlan mar dambe soo booqo.</div>';return;}
     filtered.forEach(p=>{
       const card=document.createElement('article');card.className='card';
+      card.style.cursor = 'pointer';
+
+card.onclick = () => {
+  document.getElementById('productModal').style.display = 'flex';
+
+  document.getElementById('modalName').textContent = p.name;
+  document.getElementById('modalPrice').textContent = formatUSD(p.price);
+  document.getElementById('modalDescription').textContent =
+    p.description || 'Faahfaahin lagama hayo alaabtan.';
+
+  const modalImage = document.getElementById('modalImage');
+
+  if (p.image_url) {
+    modalImage.src = p.image_url;
+    modalImage.style.display = 'block';
+  } else {
+    modalImage.style.display = 'none';
+  }
+
+  document.getElementById('modalOrder').onclick = (event) => {
+    event.stopPropagation();
+    orderProduct(p);
+  };
+};
       const photo=document.createElement('div');photo.className='photo';
       if(p.image_url){const img=document.createElement('img');img.src=p.image_url;img.alt=p.name;photo.appendChild(img);}else{photo.textContent='🛍️';}
       const details=document.createElement('div');details.className='details';
@@ -507,6 +531,16 @@ border-radius:9px;font-weight:700;text-decoration:none">
       details.append(name,desc,price,btn);card.append(photo,details);list.appendChild(card);
     });
   }
+  // CLOSE PRODUCT DETAILS POPUP
+document.getElementById('modalClose').onclick = () => {
+  document.getElementById('productModal').style.display = 'none';
+};
+
+document.getElementById('productModal').onclick = (event) => {
+  if (event.target.id === 'productModal') {
+    document.getElementById('productModal').style.display = 'none';
+  }
+};
   async function loadSellerApplications(){
   if(!isAdmin) return;
 
